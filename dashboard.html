@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thông tin cá nhân | Hệ thống bảo mật</title>
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (!currentUser) {
+            window.location.href = 'index.html';
+        }
+    </script>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img id="userAvatar" src="" alt="Avatar" class="user-avatar">
+                <h3 id="sidebarUserName">Người dùng</h3>
+                <p id="sidebarUserEmail">user@example.com</p>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="active"><a href="#"><i class="fas fa-user-circle"></i><span>Thông tin cá nhân</span></a></li>
+                    <li><a href="#"><i class="fas fa-history"></i><span>Lịch sử truy cập</span></a></li>
+                    <li><a href="#"><i class="fas fa-cog"></i><span>Cài đặt</span></a></li>
+                </ul>
+            </nav>
+            <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i><span>Đăng xuất</span></button>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="content-header">
+                <h2><i class="fas fa-user-circle"></i> THÔNG TIN CÁ NHÂN</h2>
+                <div class="header-actions">
+                    <button class="edit-btn" id="editBtn"><i class="fas fa-edit"></i> Chỉnh sửa</button>
+                </div>
+            </header>
+
+            <div class="content-card">
+                <div class="info-section">
+                    <h3><i class="fas fa-id-card"></i> Thông tin cơ bản</h3>
+                    <div class="info-grid">
+                        <div class="info-item"><label>Họ và tên</label><p id="userFullName">Loading...</p></div>
+                        <div class="info-item"><label>Email</label><p id="userEmail">Loading...</p></div>
+                        <div class="info-item sensitive"><label>Số CCCD/CMND</label><div class="sensitive-data"><span class="hidden-value" id="cmndText"></span></div></div>
+                        <div class="info-item sensitive"><label>Địa chỉ</label><div class="sensitive-data"><span class="hidden-value" id="addressText"></span></div></div>
+                        <div class="info-item sensitive"><label>Số tài khoản</label><div class="sensitive-data"><span class="hidden-value" id="stkText"></span></div></div>
+                        <div class="info-item sensitive"><label>Số BHXH</label><div class="sensitive-data"><span class="hidden-value" id="bhxhText"></span></div></div>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h3><i class="fas fa-history"></i> Hoạt động gần đây</h3>
+                    <div class="activity-list" id="activityList"><p>Đang tải...</p></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="editModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close-btn" id="closeEditModal">&times;</span>
+            <h3>Chỉnh sửa thông tin cá nhân</h3>
+            <form id="editForm">
+                <label>Họ và tên</label><input type="text" id="editFullName" required>
+                <label>Email</label><input type="email" id="editEmail" required>
+                <label>Địa chỉ</label><input type="text" id="editAddress" required>
+                <label>Số CCCD/CMND</label><input type="text" id="editCMND" required>
+                <label>Số tài khoản</label><input type="text" id="editBank" required>
+                <label>Số BHXH</label><input type="text" id="editBHXH" required>
+                <button type="submit">Lưu</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        const key1 = CryptoJS.enc.Utf8.parse('123456789012345678901234');
+        const key2 = CryptoJS.enc.Utf8.parse('12345678901234567890123456789012');
+        const iv = CryptoJS.enc.Utf8.parse('1234567890123456');
+
+        const user = JSON.parse(localStorage.getItem('currentUser'));
+        const API_ENDPOINTS = {
+            users: "https://685cc395769de2bf085dbff3.mockapi.io/users",
+            logs: "https://685cc395769de2bf085dbff3.mockapi.io/logs"
+        };
+
+        let fetchedUserData = null;
+
+        fetch(`${API_ENDPOINTS.users}/${user.id}`)
+            .then(res => res.json())
+            .then(data => {
+                fetchedUserData = data;
+                document.getElementById('sidebarUserName').textContent = data.name || '';
+                document.getElementById('sidebarUserEmail').textContent = data.email || '';
+                document.getElementById('userFullName').textContent = data.name || '';
+                document.getElementById('userEmail').textContent = data.email || '';
+                if (data.avt) document.querySelector('.user-avatar').src = data.avt;
+
+                try {
+                    const decryptedId = CryptoJS.TripleDES.decrypt({ ciphertext: CryptoJS.enc.Base64.parse(data.idNumber) }, key1, { mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7 }).toString(CryptoJS.enc.Utf8);
+                    const decryptedAddress = CryptoJS.AES.decrypt({ ciphertext: CryptoJS.enc.Base64.parse(data.address) }, key2, { iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }).toString(CryptoJS.enc.Utf8);
+                    const decryptedBank = CryptoJS.AES.decrypt({ ciphertext: CryptoJS.enc.Base64.parse(data.bankAccount) }, key2, { iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }).toString(CryptoJS.enc.Utf8);
+                    const decryptedBHXH = CryptoJS.AES.decrypt({ ciphertext: CryptoJS.enc.Base64.parse(data.socialInsurance) }, key2, { iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }).toString(CryptoJS.enc.Utf8);
+
+                    document.getElementById('cmndText').textContent = decryptedId;
+                    document.getElementById('addressText').textContent = decryptedAddress;
+                    document.getElementById('stkText').textContent = decryptedBank;
+                    document.getElementById('bhxhText').textContent = decryptedBHXH;
+
+                    fetchedUserData.decrypted = {
+                        idNumber: decryptedId,
+                        address: decryptedAddress,
+                        bankAccount: decryptedBank,
+                        socialInsurance: decryptedBHXH
+                    };
+                } catch (e) {
+                    console.error(e);
+                }
+            });
+
+        document.getElementById('editBtn').onclick = () => {
+            if (!fetchedUserData || !fetchedUserData.decrypted) return;
+            document.getElementById('editModal').style.display = 'block';
+            document.getElementById('editFullName').value = fetchedUserData.name;
+            document.getElementById('editEmail').value = fetchedUserData.email;
+            document.getElementById('editAddress').value = fetchedUserData.decrypted.address;
+            document.getElementById('editCMND').value = fetchedUserData.decrypted.idNumber;
+            document.getElementById('editBank').value = fetchedUserData.decrypted.bankAccount;
+            document.getElementById('editBHXH').value = fetchedUserData.decrypted.socialInsurance;
+        };
+
+        document.getElementById('closeEditModal').onclick = () => {
+            document.getElementById('editModal').style.display = 'none';
+        };
+
+        document.getElementById('editForm').onsubmit = async function (e) {
+            e.preventDefault();
+            const name = document.getElementById('editFullName').value;
+            const email = document.getElementById('editEmail').value;
+            const address = document.getElementById('editAddress').value;
+            const idNumber = document.getElementById('editCMND').value;
+            const bankAccount = document.getElementById('editBank').value;
+            const socialInsurance = document.getElementById('editBHXH').value;
+
+            const encryptedId = CryptoJS.TripleDES.encrypt(idNumber, key1, { mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7 }).toString();
+            const encryptedAddress = CryptoJS.AES.encrypt(address, key2, { iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }).toString();
+            const encryptedBank = CryptoJS.AES.encrypt(bankAccount, key2, { iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }).toString();
+            const encryptedBHXH = CryptoJS.AES.encrypt(socialInsurance, key2, { iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }).toString();
+
+            const updatedUser = {
+                name,
+                email,
+                address: encryptedAddress,
+                idNumber: encryptedId,
+                bankAccount: encryptedBank,
+                socialInsurance: encryptedBHXH,
+                avt: fetchedUserData.avt || ''
+            };
+
+            try {
+                await fetch(`${API_ENDPOINTS.users}/${user.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedUser)
+                });
+
+                alert("Cập nhật thành công!");
+                location.reload();
+            } catch (err) {
+                console.error(err);
+                alert("Lỗi khi cập nhật!");
+            }
+        };
+
+        fetch(`${API_ENDPOINTS.logs}?userId=${user.id}`)
+            .then(res => res.json())
+            .then(logs => {
+                const activityList = document.getElementById('activityList');
+                activityList.innerHTML = '';
+                if (logs.length === 0) {
+                    activityList.innerHTML = '<p>Không có hoạt động nào gần đây.</p>';
+                } else {
+                    logs.forEach(log => {
+                        const div = document.createElement('div');
+                        div.className = 'activity-item';
+                        div.innerHTML = `<span class="activity-time">${new Date(log.timestamp).toLocaleString()}</span><span class="activity-desc">${log.action}</span>`;
+                        activityList.appendChild(div);
+                    });
+                }
+            });
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

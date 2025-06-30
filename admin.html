@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản trị hệ thống | Hệ thống bảo mật</title>
+    <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Thêm vào head của các file HTML -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/tripledes.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/aes.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/pbkdf2.min.js"></script>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="" alt="Admin Avatar" class="admin-avatar">
+
+                <h3>QUẢN TRỊ VIÊN</h3>
+                <p id="adminEmail">admin@example.com</p>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="active">
+                        <a href="#">
+                            <i class="fas fa-users"></i>
+                            <span>Quản lý người dùng</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#">
+                            <i class="fas fa-clipboard-list"></i>
+                            <span>Nhật ký hệ thống</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#">
+                            <i class="fas fa-key"></i>
+                            <span>Quản lý khóa</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#">
+                            <i class="fas fa-cog"></i>
+                            <span>Cài đặt hệ thống</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+<button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i><span>Đăng xuất</span></button>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="content-header">
+                <h2><i class="fas fa-users"></i> QUẢN LÝ NGƯỜI DÙNG</h2>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <input type="text" placeholder="Tìm kiếm người dùng..." id="userSearch">
+                        <button id="searchBtn"><i class="fas fa-search"></i></button>
+                    </div>
+                    <button class="refresh-btn">
+                        <i class="fas fa-sync-alt"></i> Làm mới
+                    </button>
+                </div>
+            </header>
+            
+            <div class="content-card">
+                <div class="table-responsive">
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Họ tên</th>
+                                <th>Email</th>
+                                <th>Ngày đăng ký</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <!-- Users will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="table-footer">
+                    <div class="pagination-info">
+                        Hiển thị <span id="startItem">1</span>-<span id="endItem">10</span> của <span id="totalItems">25</span>
+                    </div>
+                    <div class="pagination-controls">
+                        <button class="pagination-btn" disabled>
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="pagination-btn active">1</button>
+                        <button class="pagination-btn">2</button>
+                        <button class="pagination-btn">3</button>
+                        <button class="pagination-btn">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- User Detail Modal -->
+    <div class="modal" id="userDetailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>CHI TIẾT NGƯỜI DÙNG</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="auth-required" id="authRequiredSection">
+                    <p><i class="fas fa-lock"></i> Vui lòng nhập mật khẩu quản trị để xem thông tin nhạy cảm</p>
+                    <div class="auth-form">
+                        <input type="password" id="adminPassword" placeholder="Nhập mật khẩu quản trị">
+                        <button id="verifyAdminBtn">Xác nhận</button>
+                    </div>
+                </div>
+                
+                <div class="user-details" id="userDetailsSection" style="display: none;">
+                    <div class="detail-section">
+                        <h4><i class="fas fa-info-circle"></i> Thông tin cơ bản</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label>Họ tên</label>
+                                <p id="detailFullName">Nguyễn Văn A</p>
+                            </div>
+                            <div class="detail-item">
+                                <label>Email</label>
+                                <p id="detailEmail">user@example.com</p>
+                            </div>
+                            <div class="detail-item">
+                                <label>Ngày đăng ký</label>
+                                <p id="detailCreatedAt">01/01/2023</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section sensitive-info">
+                        <h4><i class="fas fa-shield-alt"></i> Thông tin nhạy cảm</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label>Số CCCD/CMND</label>
+                                <p id="detailIdNumber">123456789</p>
+                            </div>
+                            <div class="detail-item">
+                                <label>Số BHXH</label>
+                                <p id="detailSocialInsurance">987654321</p>
+                            </div>
+                            <div class="detail-item">
+                                <label>Số tài khoản</label>
+                                <p id="detailBankAccount">123456789012</p>
+                            </div>
+                            <div class="detail-item">
+                                <label>Địa chỉ</label>
+                                <p id="detailAddress">123 Đường ABC, Quận XYZ, TP.HCM</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-close-btn">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/admin.js"></script>
+</body>
+</html>
